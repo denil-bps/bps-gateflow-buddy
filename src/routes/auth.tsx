@@ -12,6 +12,8 @@ export const Route = createFileRoute("/auth")({
     { name: "description", content: "Secure staff sign-in for BPS GateFlow." },
     { property: "og:title", content: "Sign in · BPS GateFlow" },
     { property: "og:description", content: "Secure staff sign-in for BPS GateFlow." },
+     { property: "og:type", content: "website" },
+     { name: "twitter:card", content: "summary_large_image" },
   ] }),
   component: AuthPage,
 });
