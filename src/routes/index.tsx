@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDownRight, ArrowUpRight, BadgeIndianRupee, BarChart3, Bell, BookOpen, CarFront, Check, ChevronRight, CircleHelp, ClipboardList, DoorOpen, FileText, LayoutDashboard, LogOut, Menu, MonitorPlay, MoreHorizontal, Plus, Printer, QrCode, ScanLine, Search, Settings2, ShieldCheck, UserRound, UserRoundPlus, UsersRound, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bell, BookOpen, Check, ChevronRight, ClipboardList, DoorOpen, Edit3, FileText, FileUp, LayoutDashboard, LogOut, MonitorPlay, MoreHorizontal, Plus, Printer, QrCode, ScanLine, Search, Settings2, ShieldCheck, UserRound, UserRoundPlus, UsersRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,16 +10,12 @@ import type { Database } from "@/integrations/supabase/types";
 type Student = Database["public"]["Tables"]["students"]["Row"];
 type GatePass = Database["public"]["Tables"]["gate_passes"]["Row"];
 type VisitorGroup = Database["public"]["Tables"]["visitor_groups"]["Row"];
+type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"];
 type Role = Database["public"]["Tables"]["user_roles"]["Row"]["role"];
 type Tab = "overview" | "students" | "visitors" | "reports" | "settings";
+type ActivityItem = { kind: "IN" | "OUT"; person: string; detail: string; time: string; tone: string };
 
 const movementTypes = ["Personal Leave", "On Duty", "Medical", "Home Leave", "Outing", "Other"] as const;
-const activitySeed = [
-  { kind: "IN", person: "Ishaan Patel", detail: "Student · Class 9 A · Vivekanand", time: "09:41", tone: "green" },
-  { kind: "OUT", person: "Denil Kanetiya", detail: "Student · Medical", time: "09:38", tone: "blue" },
-  { kind: "IN", person: "Rahul Sharma +3", detail: "Visitor group · Meeting Registrar", time: "09:30", tone: "gold" },
-  { kind: "OUT", person: "Aarav Khanna", detail: "Student · Personal Leave", time: "09:18", tone: "red" },
-];
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
