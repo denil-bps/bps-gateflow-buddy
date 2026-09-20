@@ -105,7 +105,16 @@ function Console({ user, role, onSignOut }: { user: { id: string; email?: string
   useEffect(() => {
     void refresh();
     const interval = window.setInterval(() => void refresh(), 15000);
-    return () => window.clearInterval(interval);
+    const channel = supabase.channel("gateflow-operations-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, () => void refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "gate_passes" }, () => void refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "visitor_groups" }, () => void refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "audit_logs" }, () => void refresh())
+      .subscribe();
+    return () => {
+      window.clearInterval(interval);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   const filteredStudents = useMemo(() => students.filter((student) => [student.name, student.student_id, student.qr_id, student.house, student.house_no ?? ""].join(" ").toLowerCase().includes(search.toLowerCase())), [students, search]);
@@ -171,10 +180,11 @@ function Console({ user, role, onSignOut }: { user: { id: string; email?: string
 function buildActivity(passes: GatePass[], visitors: VisitorGroup[], audit: AuditLog[], students: Student[]): ActivityItem[] {
   const nameFor = (id: string) => students.find((student) => student.id === id)?.name ?? "Student movement";
   const items: ActivityItem[] = [];
-  passes.forEach((pass) => { const person = nameFor(pass.student_id); items.push({ kind: "OUT", person, detail: `${pass.movement_type} · ${pass.pass_no}`, time: new Date(pass.out_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), tone: "blue" }); if (pass.in_at) items.push({ kind: "IN", person, detail: `Returned · ${pass.who_dropped ?? "gate desk"}`, time: new Date(pass.in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), tone: "green" }); });
-  visitors.forEach((visitor) => { items.push({ kind: "IN", person: visitor.head_name, detail: `Visitor group · ${visitor.visitor_pass_id}`, time: new Date(visitor.in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), tone: "green" }); if (visitor.out_at) items.push({ kind: "OUT", person: visitor.head_name, detail: `Visitor OUT · ${visitor.visitor_pass_id}`, time: new Date(visitor.out_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), tone: "blue" }); });
-  audit.forEach((entry) => items.push({ kind: entry.action.toLowerCase().includes("in") ? "IN" : "OUT", person: entry.entity_type === "student" ? "Student records" : "Gate activity", detail: entry.action, time: new Date(entry.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), tone: "blue" }));
-  return items.sort((a, b) => b.time.localeCompare(a.time)).slice(0, 8);
+  const displayTime = (value: string) => new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  passes.forEach((pass) => { const person = nameFor(pass.student_id); items.push({ kind: "OUT", person, detail: `${pass.movement_type} · ${pass.pass_no}`, time: displayTime(pass.out_at), timestamp: new Date(pass.out_at).getTime(), tone: "blue" }); if (pass.in_at) items.push({ kind: "IN", person, detail: `Returned · ${pass.who_dropped ?? "gate desk"}`, time: displayTime(pass.in_at), timestamp: new Date(pass.in_at).getTime(), tone: "green" }); });
+  visitors.forEach((visitor) => { items.push({ kind: "IN", person: visitor.head_name, detail: `Visitor group · ${visitor.visitor_pass_id}`, time: displayTime(visitor.in_at), timestamp: new Date(visitor.in_at).getTime(), tone: "green" }); if (visitor.out_at) items.push({ kind: "OUT", person: visitor.head_name, detail: `Visitor OUT · ${visitor.visitor_pass_id}`, time: displayTime(visitor.out_at), timestamp: new Date(visitor.out_at).getTime(), tone: "blue" }); });
+  audit.forEach((entry) => items.push({ kind: entry.action.toLowerCase().includes("in") ? "IN" : "OUT", person: entry.entity_type === "student" ? "Student records" : "Gate activity", detail: entry.action, time: displayTime(entry.created_at), timestamp: new Date(entry.created_at).getTime(), tone: "blue" }));
+  return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 8);
 }
 
 function NavButton({ active, icon, children, onClick }: { active: boolean; icon: ReactNode; children: ReactNode; onClick: () => void }) { return <button onClick={onClick} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${active ? "bg-surface-raised text-primary shadow-sm" : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"}`}>{icon}{children}</button>; }
