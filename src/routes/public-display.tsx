@@ -24,8 +24,8 @@ function PublicDisplay() {
   const [state, setState] = useState<DisplayState>(fallback);
   useEffect(() => {
     let active = true;
-    void supabase.from("public_display_state").select("*").eq("id", 1).maybeSingle().then(({ data }) => { if (active && data) setState(data); });
-    const channel = supabase.channel("public-display-live").on("postgres_changes", { event: "UPDATE", schema: "public", table: "public_display_state", filter: "id=eq.1" }, (payload) => { if (active) setState(payload.new as DisplayState); }).subscribe();
+    void supabase.from("public_display_state").select("*").eq("id", 1).maybeSingle().then(({ data }) => { if (active && data && Date.now() - new Date(data.updated_at).getTime() < 12000) setState(data); });
+    const channel = supabase.channel("public-display-live").on("postgres_changes", { event: "UPDATE", schema: "public", table: "public_display_state", filter: "id=eq.1" }, (payload) => { if (active) { const next = payload.new as DisplayState; if (Date.now() - new Date(next.updated_at).getTime() < 12000) setState(next); else setState(fallback); } }).subscribe();
     return () => { active = false; void supabase.removeChannel(channel); };
   }, []);
   useEffect(() => {
